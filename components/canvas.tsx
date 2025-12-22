@@ -23,7 +23,6 @@ export function Canvas({ cors, selectedColor, onCanvasClick, onCorClick, onTrash
   const updateCanvasDimensions = () => {
     if (canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect()
-      console.log("[v0] Canvas dimensions updated:", rect.width, rect.height)
       setCanvasDimensions({ width: rect.width, height: rect.height })
     }
   }
@@ -61,49 +60,15 @@ export function Canvas({ cors, selectedColor, onCanvasClick, onCorClick, onTrash
     })
   }
 
-  const generateBlobPath = (cor: Cor): string => {
+  const getRotationAngle = (cor: Cor): number => {
     const seed = cor.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    const random = (index: number) => {
-      const x = Math.sin(seed + index) * 10000
-      return x - Math.floor(x)
-    }
-
-    const points = 5
-    const baseRadius = 64
-    let path = "M "
-
-    for (let i = 0; i < points; i++) {
-      const angle = (i / points) * Math.PI * 2
-      const nextAngle = ((i + 1) / points) * Math.PI * 2
-
-      const radiusVariation = 0.7 + random(i) * 0.3
-      const radius = baseRadius * radiusVariation
-
-      const x = Math.cos(angle) * radius
-      const y = Math.sin(angle) * radius
-
-      const nextRadius = baseRadius * (0.7 + random(i + 1) * 0.3)
-      const nextX = Math.cos(nextAngle) * nextRadius
-      const nextY = Math.sin(nextAngle) * nextRadius
-
-      const cp1x = x + Math.cos(angle + Math.PI / 2) * (radius * 0.6 * (random(i + 10) - 0.5))
-      const cp1y = y + Math.sin(angle + Math.PI / 2) * (radius * 0.6 * (random(i + 11) - 0.5))
-      const cp2x = nextX - Math.cos(nextAngle + Math.PI / 2) * (nextRadius * 0.6 * (random(i + 12) - 0.5))
-      const cp2y = nextY - Math.sin(nextAngle + Math.PI / 2) * (nextRadius * 0.6 * (random(i + 13) - 0.5))
-
-      if (i === 0) {
-        path += `${x} ${y} `
-      }
-
-      path += `C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${nextX} ${nextY} `
-    }
-
-    path += "Z"
-    return path
+    const x = Math.sin(seed) * 10000
+    const random = x - Math.floor(x)
+    return random * 360
   }
 
-  const trashSize = Math.min(canvasDimensions.width, canvasDimensions.height) * 0.12 // 12% of smaller dimension
-  const trashPadding = trashSize * 0.25 // 25% of trash size
+  const trashSize = Math.min(canvasDimensions.width, canvasDimensions.height) * 0.12
+  const trashPadding = trashSize * 0.25
 
   return (
     <div
@@ -142,6 +107,7 @@ export function Canvas({ cors, selectedColor, onCanvasClick, onCorClick, onTrash
 
         const absoluteX = cor.x * canvasDimensions.width
         const absoluteY = cor.y * canvasDimensions.height
+        const rotation = getRotationAngle(cor)
 
         return (
           <div
@@ -155,8 +121,27 @@ export function Canvas({ cors, selectedColor, onCanvasClick, onCorClick, onTrash
               height: 128,
             }}
           >
-            <svg width="128" height="128" viewBox="-64 -64 128 128" className="drop-shadow-lg">
-              <path d={generateBlobPath(cor)} fill={hslToRgbString(cor.color)} stroke="white" strokeWidth="2" />
+            <svg width="128" height="128" viewBox="0 0 297 297" className="drop-shadow-lg">
+              <g transform={`translate(148.5 148.5) scale(0.85) rotate(${rotation}) translate(-148.5 -148.5)`}>
+                <path
+                  d="M165.797,288.71c-16.89,0-23.974-15.545-26.301-20.652c-1.919-4.214-4.4-6.728-6.637-6.728
+                    c-1.343,0-2.797,0.826-3.621,2.059c-10.602,15.854-29.265,25.322-49.922,25.322c-34.197,0-62.021-27.887-62.021-62.166
+                    c0-21.166,8.271-38.889,22.124-47.404c3.865-2.381,5.826-4.702,5.826-6.9c0-2.814-3.012-4.884-5.989-5.476
+                    C15.409,162.026,0,144.645,0,122.485c0-24.713,20.065-44.82,44.729-44.82c11.259,0,22.653,4.772,30.479,12.766
+                    c3.585,3.661,7.638,5.365,12.756,5.365c8.769,0,16.306-6.502,16.459-14.196c0.047-2.183-0.073-9.916-0.124-12.712
+                    c-0.001-0.063-0.002-0.124-0.002-0.185c0-33.875,27.013-60.413,61.499-60.413c34.199,0,62.024,27.887,62.024,62.166
+                    c0,14.94-7.221,31.259-12.493,43.174l-0.237,0.537c-3.781,8.552-3.697,16.272,0.246,22.327c4.468,6.86,13.725,11.124,24.159,11.124
+                    c1.115,0,2.254-0.048,3.384-0.143c2.557-0.215,7.247-0.388,9.649-0.428c0.243-0.004,0.471-0.006,0.7-0.006
+                    c24.135,0,43.77,20.104,43.77,44.818c0,24.714-20.065,44.82-44.729,44.82c-12.84,0-22.554-6.859-30.36-12.371
+                    c-0.97-0.685-1.936-1.366-2.905-2.034c-4.171-2.877-7.974-4.159-12.333-4.159c-4.903,0-9.571,2.035-13.147,5.728
+                    c-3.759,3.884-5.732,9.02-5.557,14.46c0.102,3.117,0.82,5.201,1.91,8.355c1.066,3.087,2.392,6.927,3.264,12.284
+                    c1.13,6.959-0.928,13.939-5.793,19.656C181.964,284.93,173.906,288.71,165.797,288.71z"
+                  fill={hslToRgbString(cor.color)}
+                  stroke="white"
+                  strokeWidth="3"
+                  fillRule="evenodd"
+                />
+              </g>
             </svg>
           </div>
         )
