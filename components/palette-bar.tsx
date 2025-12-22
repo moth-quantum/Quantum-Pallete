@@ -14,9 +14,9 @@ function formatHsl(hsl: HSL): string {
 
 export function PaletteBar({ palette, cors }: PaletteBarProps) {
   return (
-    <div className="w-full h-full flex items-center gap-3 overflow-x-auto px-2">
+    <div className="w-full h-full flex flex-wrap items-center gap-3 overflow-y-auto px-2">
       <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Palette:</span>
-      <div className="flex gap-2 items-center">
+      <div className="flex flex-wrap gap-2 items-center">
         {cors.length === 0 ? (
           <span className="text-xs text-slate-400 italic">No colors in palette yet</span>
         ) : (

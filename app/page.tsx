@@ -12,7 +12,7 @@ import type { Cor } from "@/types/quantum"
 import { hslToRgbString } from "@/utils/quantum-circuit"
 
 export default function Page() {
-  const { requestQubit, error: qubitError, clearError } = useQubitManager()
+  const { requestQubit, error: qubitError, clearError } = useQubitManager(10)
   const { cors, setCors, palette, createCor, mixCors, removeCor } = useQuantumState(requestQubit)
   const { selectedColor, selectColor, deselectColor } = useSelectionState()
   const { updateCorPosition } = useCorPosition(cors, setCors)
@@ -78,7 +78,7 @@ export default function Page() {
             ></div>
           )}
 
-          <span className="text-sm text-slate-500 ml-auto">Quantum Pallet</span>
+          <span className="text-sm text-slate-500 ml-auto">Quantum Palette</span>
         </div>
 
         <div className="flex-1 relative overflow-hidden bg-gradient-to-br from-slate-50 to-white">
@@ -105,13 +105,9 @@ export default function Page() {
           </div>
         )}
 
-        <div className="h-16 border-t border-slate-100 bg-white rounded-b-3xl p-3 overflow-y-hidden flex-shrink-0">
+        <div className="h-24 border-t border-slate-100 bg-white rounded-b-3xl p-3 overflow-y-auto flex-shrink-0">
           <PaletteBar palette={palette} cors={cors} />
         </div>
-      </div>
-
-      <div className="absolute bottom-4 right-4 text-xs text-slate-400 max-w-xs">
-        <p>Cors: {cors.length}</p>
       </div>
     </div>
   )
