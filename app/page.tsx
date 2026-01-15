@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
+import { HelpCircle } from "lucide-react"
 import { Canvas } from "@/components/canvas"
 import { ColorPicker } from "@/components/color-picker"
 import { PaletteBar } from "@/components/palette-bar"
+import { TutorialModal } from "@/components/tutorial-modal"
 import { useQuantumState } from "@/hooks/use-quantum-state"
 import { useSelectionState } from "@/hooks/use-selection-state"
 import { useCorPosition } from "@/hooks/use-cor-position"
@@ -18,17 +20,20 @@ export default function Page() {
   const { updateCorPosition } = useCorPosition(cors, setCors)
 
   const [showColorPicker, setShowColorPicker] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
   const [firstSelectedCor, setFirstSelectedCor] = useState<Cor | null>(null)
   const colorPickerRef = useRef<HTMLDivElement>(null)
 
+  useEffect(() => {
+    setShowTutorial(true)
+  }, [])
+
   const handleCorClick = (cor: Cor) => {
     if (firstSelectedCor && firstSelectedCor.id !== cor.id) {
-      // Mix the two cors
       mixCors(firstSelectedCor.qubit, cor.qubit)
       setFirstSelectedCor(null)
       deselectColor()
     } else {
-      // Select this cor's color and mark it as first selected
       selectColor(cor.color)
       setFirstSelectedCor(cor)
     }
@@ -42,6 +47,8 @@ export default function Page() {
 
   return (
     <div className="w-screen h-screen bg-slate-700 flex flex-col p-4 overflow-hidden">
+      <TutorialModal isOpen={showTutorial} onClose={() => setShowTutorial(false)} />
+
       <div className="relative w-full h-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col">
         <div className="h-16 flex items-center gap-4 px-4 border-b border-slate-100 flex-shrink-0">
           <button
@@ -68,6 +75,14 @@ export default function Page() {
                 />
               </div>
             )}
+          </button>
+
+          <button
+            onClick={() => setShowTutorial(true)}
+            className="w-8 h-8 rounded-full border-2 border-slate-300 hover:border-slate-500 transition-colors flex items-center justify-center bg-white hover:bg-slate-50 flex-shrink-0"
+            title="How to use"
+          >
+            <HelpCircle className="w-4 h-4 text-slate-500" />
           </button>
 
           {selectedColor && (
