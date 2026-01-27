@@ -143,6 +143,37 @@ export class QuantumCircuit {
     this.applyGate(qubit, this.getMatrix("x", 0))
   }
 
+  /**
+   * Hadamard gate: creates superposition
+   * H|0⟩ = (|0⟩ + |1⟩)/√2
+   * H|1⟩ = (|0⟩ - |1⟩)/√2
+   */
+  h(qubit) {
+    const sqrt2inv = 1 / Math.sqrt(2)
+    const matrix = [
+      [complex(sqrt2inv, 0), complex(sqrt2inv, 0)],
+      [complex(sqrt2inv, 0), complex(-sqrt2inv, 0)],
+    ]
+    this.applyGate(qubit, matrix)
+  }
+
+  /**
+   * CNOT (Controlled-X) gate: flips target qubit if control qubit is |1⟩
+   * @param control - control qubit index
+   * @param target - target qubit index
+   */
+  cnot(control, target) {
+    // CNOT matrix in the basis |00⟩, |01⟩, |10⟩, |11⟩
+    // Maps: |00⟩→|00⟩, |01⟩→|01⟩, |10⟩→|11⟩, |11⟩→|10⟩
+    const matrix = [
+      [complex(1, 0), complex(0, 0), complex(0, 0), complex(0, 0)], // |00⟩ → |00⟩
+      [complex(0, 0), complex(1, 0), complex(0, 0), complex(0, 0)], // |01⟩ → |01⟩
+      [complex(0, 0), complex(0, 0), complex(0, 0), complex(1, 0)], // |10⟩ → |11⟩
+      [complex(0, 0), complex(0, 0), complex(1, 0), complex(0, 0)], // |11⟩ → |10⟩
+    ]
+    this.apply2QubitGate(control, target, matrix)
+  }
+
   pswap(qubit1, qubit2, theta) {
     const c = Math.cos(theta / 2)
     const s = Math.sin(theta / 2)
