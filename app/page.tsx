@@ -8,25 +8,44 @@ import { PaletteBar } from "@/components/palette-bar"
 import { TutorialModal } from "@/components/tutorial-modal"
 import { useQuantumState } from "@/hooks/use-quantum-state"
 import { useSelectionState } from "@/hooks/use-selection-state"
-import { useCorPosition } from "@/hooks/use-cor-position"
 import { useQubitManager } from "@/hooks/use-qubit-manager"
 import type { Cor } from "@/types/quantum"
 import { hslToRgbString } from "@/utils/quantum-circuit"
 
 export default function Page() {
-  const { requestQubit, error: qubitError, clearError } = useQubitManager(10)
-  const { cors, setCors, palette, createCor, mixCors, removeCor } = useQuantumState(requestQubit)
+  const { requestQubit, releaseQubit, error: qubitError, clearError } = useQubitManager(10)
+  const { cors, setCors, palette, createCor, mixCors, removeCor, lastMeasurement } = useQuantumState(requestQubit, releaseQubit)
   const { selectedColor, selectColor, deselectColor } = useSelectionState()
-  const { updateCorPosition } = useCorPosition(cors, setCors)
 
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
   const [firstSelectedCor, setFirstSelectedCor] = useState<Cor | null>(null)
+  const [measurementToast, setMeasurementToast] = useState<{
+    outcome: 0 | 1
+    prob0: number
+    prob1: number
+  } | null>(null)
   const colorPickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setShowTutorial(true)
   }, [])
+
+  // Show measurement toast when a measurement occurs
+  useEffect(() => {
+    if (lastMeasurement) {
+      setMeasurementToast({
+        outcome: lastMeasurement.outcome,
+        prob0: lastMeasurement.prob0,
+        prob1: lastMeasurement.prob1,
+      })
+      // Auto-hide after 3 seconds
+      const timer = setTimeout(() => {
+        setMeasurementToast(null)
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [lastMeasurement])
 
   const handleCorClick = (cor: Cor) => {
     if (firstSelectedCor && firstSelectedCor.id !== cor.id) {
@@ -108,10 +127,27 @@ export default function Page() {
               }
             }}
             onCorClick={handleCorClick}
-            onCorDrag={(corId, pos) => updateCorPosition(corId, pos)}
             onTrashClick={deselectColor}
             onTrashDrop={handleTrashDrop}
           />
+          
+          {/* Measurement Toast */}
+          {measurementToast && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 z-50">
+              <div className="flex items-center gap-4">
+                <div className="text-2xl font-mono font-bold">
+                  M = |{measurementToast.outcome}&#x27E9;
+                </div>
+                <div className="text-sm text-slate-300 border-l border-slate-600 pl-4">
+                  <div>P(0) = {(measurementToast.prob0 * 100).toFixed(1)}%</div>
+                  <div>P(1) = {(measurementToast.prob1 * 100).toFixed(1)}%</div>
+                </div>
+              </div>
+              <div className="text-xs text-slate-400 mt-2 text-center">
+                Wavefunction collapsed
+              </div>
+            </div>
+          )}
         </div>
 
         {qubitError && (

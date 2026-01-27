@@ -4,10 +4,25 @@ import { useState, useCallback, useRef, useMemo } from "react"
 import type { Cor, HSL } from "@/types/quantum"
 import { QuantumCircuit, hslToAngles, expectationValuesToHsl } from "@/utils/quantum-circuit"
 
-export function useQuantumState(requestQubit: () => number | null) {
+export interface MeasurementResult {
+  outcome: 0 | 1
+  prob0: number
+  prob1: number
+  qubitIndex: number
+}
+
+export function useQuantumState(
+  requestQubit: () => number | null,
+  releaseQubit: (qubit: number) => void
+) {
   const [cors, setCors] = useState<Cor[]>([])
+  const [lastMeasurement, setLastMeasurement] = useState<MeasurementResult | null>(null)
 
   const circuitRef = useRef<QuantumCircuit>(new QuantumCircuit())
+  
+  // Maps logical qubit index (from qubitManager) to circuit qubit index (position in statevector)
+  // When qubits are removed, circuit indices shift but logical indices stay the same
+  const logicalToCircuitMapRef = useRef<Map<number, number>>(new Map())
 
   const generateId = useCallback(() => {
     return `cor-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
@@ -15,17 +30,25 @@ export function useQuantumState(requestQubit: () => number | null) {
 
   const computeColorsFromCircuit = useCallback((currentCors: Cor[]): Map<number, HSL> => {
     const circuit = circuitRef.current
+    const logicalToCircuit = logicalToCircuitMapRef.current
 
     if (circuit.getNumQubits() === 0) return new Map()
 
     const expectationValues = circuit.calculateExpectationValues()
     const colors = new Map<number, HSL>()
 
-    for (const [qubit, values] of expectationValues) {
-      const cor = currentCors.find((c) => c.qubit === qubit)
-      const saturation = cor ? cor.color[1] : 0.7
+    // expectationValues is keyed by circuit qubit index
+    // We need to map back to logical qubit index for each cor
+    for (const cor of currentCors) {
+      const circuitIndex = logicalToCircuit.get(cor.qubit)
+      if (circuitIndex === undefined) continue
+      
+      const values = expectationValues.get(circuitIndex)
+      if (!values) continue
+      
+      const saturation = cor.color[1]
       const newHsl = expectationValuesToHsl(values.x, values.y, values.z, saturation)
-      colors.set(qubit, newHsl)
+      colors.set(cor.qubit, newHsl) // Use logical qubit index as key
     }
 
     return colors
@@ -52,22 +75,27 @@ export function useQuantumState(requestQubit: () => number | null) {
 
   const createCor = useCallback(
     (pos: { x: number; y: number }, color: HSL) => {
-      const newQubit = requestQubit()
-      if (newQubit === null) return
+      const newLogicalQubit = requestQubit()
+      if (newLogicalQubit === null) return
 
-      circuitRef.current.addQubit()
+      // Add qubit to circuit - this returns the circuit index
+      const circuitIndex = circuitRef.current.addQubit()
+      
+      // Map logical qubit to circuit qubit
+      logicalToCircuitMapRef.current.set(newLogicalQubit, circuitIndex)
 
       const { ryAngle, rzAngle } = hslToAngles(color)
 
-      circuitRef.current.ry(newQubit, ryAngle)
-      circuitRef.current.rz(newQubit, rzAngle)
+      // Apply gates using circuit index
+      circuitRef.current.ry(circuitIndex, ryAngle)
+      circuitRef.current.rz(circuitIndex, rzAngle)
 
       const newCor: Cor = {
         id: generateId(),
         color,
-        qubit: newQubit,
-        x: Math.max(0, Math.min(1, pos.x)), // Clamp to 0-1
-        y: Math.max(0, Math.min(1, pos.y)), // Clamp to 0-1
+        qubit: newLogicalQubit, // Store logical qubit index
+        x: Math.max(0, Math.min(1, pos.x)),
+        y: Math.max(0, Math.min(1, pos.y)),
       }
 
       setCors((prev) => [...prev, newCor])
@@ -77,16 +105,93 @@ export function useQuantumState(requestQubit: () => number | null) {
   )
 
   const mixCors = useCallback(
-    (cor1Qubit: number, cor2Qubit: number) => {
-      circuitRef.current.pswap(cor1Qubit, cor2Qubit, Math.PI / 10)
+    (cor1LogicalQubit: number, cor2LogicalQubit: number) => {
+      const logicalToCircuit = logicalToCircuitMapRef.current
+      const circuit1 = logicalToCircuit.get(cor1LogicalQubit)
+      const circuit2 = logicalToCircuit.get(cor2LogicalQubit)
+      
+      if (circuit1 === undefined || circuit2 === undefined) {
+        console.warn(`[v0] Cannot mix: qubit mapping not found for ${cor1LogicalQubit} or ${cor2LogicalQubit}`)
+        return
+      }
+      
+      circuitRef.current.pswap(circuit1, circuit2, Math.PI / 10)
       updateCorColors()
     },
     [updateCorColors],
   )
 
-  const removeCor = useCallback((corId: string) => {
-    setCors((prev) => prev.filter((cor) => cor.id !== corId))
-  }, [])
+  /**
+   * Removes a Cor by performing a quantum measurement (collapse) on its qubit.
+   * This implements a quantum trajectory: we measure in Z basis, probabilistically
+   * choose outcome 0 or 1, project the state, and trace out the qubit.
+   * The qubit index is then released for reuse.
+   */
+  const removeCor = useCallback(
+    (corId: string): MeasurementResult | null => {
+      // Find the cor to remove
+      const corToRemove = cors.find((c) => c.id === corId)
+      if (!corToRemove) {
+        console.warn(`[v0] Attempted to remove non-existent cor: ${corId}`)
+        return null
+      }
+
+      const logicalQubitToRemove = corToRemove.qubit
+      const circuit = circuitRef.current
+      const logicalToCircuit = logicalToCircuitMapRef.current
+
+      // Get the circuit index for this logical qubit
+      const circuitQubitIndex = logicalToCircuit.get(logicalQubitToRemove)
+
+      if (circuitQubitIndex === undefined || circuit.getNumQubits() === 0) {
+        console.warn(`[v0] Qubit ${logicalQubitToRemove} not found in circuit mapping`)
+        setCors((prev) => prev.filter((cor) => cor.id !== corId))
+        logicalToCircuit.delete(logicalQubitToRemove)
+        releaseQubit(logicalQubitToRemove)
+        return null
+      }
+
+      // Perform measurement and collapse
+      const measurementResult = circuit.measureAndRemoveQubit(circuitQubitIndex)
+
+      console.log(
+        `[v0] Measured logical qubit ${logicalQubitToRemove} (circuit index ${circuitQubitIndex}): ` +
+          `outcome=${measurementResult.outcome}, P(0)=${measurementResult.prob0.toFixed(4)}, P(1)=${measurementResult.prob1.toFixed(4)}`
+      )
+
+      // Update the logical-to-circuit mapping
+      // Remove the measured qubit's mapping
+      logicalToCircuit.delete(logicalQubitToRemove)
+      
+      // Decrement circuit indices for all qubits that had a higher circuit index
+      for (const [logicalQubit, circuitIdx] of logicalToCircuit.entries()) {
+        if (circuitIdx > circuitQubitIndex) {
+          logicalToCircuit.set(logicalQubit, circuitIdx - 1)
+        }
+      }
+
+      // Update cors: remove the measured cor
+      setCors((prev) => prev.filter((cor) => cor.id !== corId))
+
+      // Release the logical qubit for reuse
+      releaseQubit(logicalQubitToRemove)
+
+      const result: MeasurementResult = {
+        outcome: measurementResult.outcome,
+        prob0: measurementResult.prob0,
+        prob1: measurementResult.prob1,
+        qubitIndex: logicalQubitToRemove,
+      }
+
+      setLastMeasurement(result)
+
+      // Update colors for remaining cors
+      setTimeout(updateCorColors, 0)
+
+      return result
+    },
+    [cors, releaseQubit, updateCorColors]
+  )
 
   const palette = useMemo(() => {
     return cors.reduce(
@@ -105,5 +210,6 @@ export function useQuantumState(requestQubit: () => number | null) {
     createCor,
     mixCors,
     removeCor,
+    lastMeasurement,
   }
 }

@@ -165,6 +165,101 @@ export class QuantumCircuit {
     return copied
   }
 
+  /**
+   * Performs a projective measurement on a qubit in the Z basis (quantum trajectory),
+   * collapses the wavefunction, and removes the qubit from the system.
+   * 
+   * @param qubit - The qubit index to measure and remove
+   * @returns Object containing the measurement outcome (0 or 1) and probabilities
+   */
+  measureAndRemoveQubit(qubit: number): { outcome: 0 | 1; prob0: number; prob1: number } {
+    if (this.numQubits === 0) {
+      throw new Error("Cannot measure: no qubits in the circuit")
+    }
+    if (qubit < 0 || qubit >= this.numQubits) {
+      throw new Error(`Invalid qubit index: ${qubit}`)
+    }
+
+    const size = Math.pow(2, this.numQubits)
+    const bitPos = this.numQubits - 1 - qubit
+
+    // Calculate probabilities for outcomes 0 and 1
+    let prob0 = 0
+    let prob1 = 0
+
+    for (let i = 0; i < size; i++) {
+      const amplitude = this.statevector[i]
+      const prob = Math.pow(abs(amplitude), 2)
+      const bitValue = (i >> bitPos) & 1
+
+      if (bitValue === 0) {
+        prob0 += prob
+      } else {
+        prob1 += prob
+      }
+    }
+
+    // Choose outcome based on random variable
+    const rand = Math.random()
+    const outcome: 0 | 1 = rand < prob0 ? 0 : 1
+
+    // Project onto the chosen outcome and create new reduced statevector
+    const newNumQubits = this.numQubits - 1
+    const newSize = Math.max(1, Math.pow(2, newNumQubits))
+    const newStatevector: Complex[] = Array(newSize)
+      .fill(null)
+      .map(() => complex(0, 0))
+
+    // Normalization factor for the projection
+    const normFactor = Math.sqrt(outcome === 0 ? prob0 : prob1)
+
+    if (normFactor < 1e-10) {
+      // Edge case: probability of chosen outcome is essentially zero
+      // This shouldn't happen in practice, but handle gracefully
+      newStatevector[0] = complex(1, 0)
+    } else {
+      // Project and trace out the measured qubit
+      for (let i = 0; i < size; i++) {
+        const bitValue = (i >> bitPos) & 1
+        
+        // Only keep states consistent with measurement outcome
+        if (bitValue !== outcome) continue
+
+        // Compute new index by removing the measured qubit's bit
+        // Extract bits above and below the measured qubit position
+        const highBits = (i >> (bitPos + 1)) << bitPos
+        const lowBits = i & ((1 << bitPos) - 1)
+        const newIndex = highBits | lowBits
+
+        // Normalize the amplitude
+        const amp = this.statevector[i]
+        const normalizedAmp = complex(amp.re / normFactor, amp.im / normFactor)
+        newStatevector[newIndex] = normalizedAmp
+      }
+    }
+
+    // Update circuit state
+    this.numQubits = newNumQubits
+    this.statevector = newStatevector
+
+    return { outcome, prob0, prob1 }
+  }
+
+  /**
+   * Remaps qubit indices after a qubit has been removed.
+   * Qubits with index > removedQubit need to be decremented.
+   * 
+   * @param removedQubit - The qubit that was removed
+   * @param currentQubit - The qubit index to remap
+   * @returns The new qubit index after removal
+   */
+  static remapQubitIndex(removedQubit: number, currentQubit: number): number {
+    if (currentQubit > removedQubit) {
+      return currentQubit - 1
+    }
+    return currentQubit
+  }
+
   getStatevector() {
     return this.statevector.map((c) => complex(c.re, c.im))
   }

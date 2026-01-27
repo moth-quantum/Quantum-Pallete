@@ -19,6 +19,9 @@ export function Canvas({ cors, selectedColor, onCanvasClick, onCorClick, onTrash
   const trashRef = useRef<HTMLDivElement>(null)
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null)
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 })
+  const [draggingCor, setDraggingCor] = useState<string | null>(null)
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const [isOverTrash, setIsOverTrash] = useState(false)
 
   const updateCanvasDimensions = () => {
     if (canvasRef.current) {
@@ -43,6 +46,44 @@ export function Canvas({ cors, selectedColor, onCanvasClick, onCorClick, onTrash
     }
 
     setCursorPos(pos)
+
+    // Check if dragging cor is over trash
+    if (draggingCor && trashRef.current) {
+      const trashRect = trashRef.current.getBoundingClientRect()
+      const isOver =
+        e.clientX >= trashRect.left &&
+        e.clientX <= trashRect.right &&
+        e.clientY >= trashRect.top &&
+        e.clientY <= trashRect.bottom
+      setIsOverTrash(isOver)
+    }
+  }
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!draggingCor) return
+
+    if (isOverTrash && onTrashDrop) {
+      onTrashDrop(draggingCor)
+    }
+
+    setDraggingCor(null)
+    setIsOverTrash(false)
+  }
+
+  const handleCorMouseDown = (e: React.MouseEvent, cor: Cor) => {
+    e.stopPropagation()
+    
+    // Calculate offset from cor center to mouse position
+    if (!canvasRef.current) return
+    const rect = canvasRef.current.getBoundingClientRect()
+    const corAbsoluteX = cor.x * canvasDimensions.width
+    const corAbsoluteY = cor.y * canvasDimensions.height
+    
+    setDragOffset({
+      x: e.clientX - rect.left - corAbsoluteX,
+      y: e.clientY - rect.top - corAbsoluteY,
+    })
+    setDraggingCor(cor.id)
   }
 
   const handleCanvasClick = (e: React.MouseEvent) => {
@@ -75,29 +116,43 @@ export function Canvas({ cors, selectedColor, onCanvasClick, onCorClick, onTrash
       ref={canvasRef}
       onClick={handleCanvasClick}
       onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={() => {
+        setDraggingCor(null)
+        setIsOverTrash(false)
+      }}
       className="w-full h-full relative cursor-crosshair select-none"
     >
       {/* Trash Region */}
       <div
         ref={trashRef}
         onClick={onTrashClick}
-        className="absolute rounded-2xl border-2 bg-black border-slate-900 hover:bg-slate-900 transition-all flex items-center justify-center cursor-pointer shadow-lg group"
+        className={`absolute rounded-2xl border-2 transition-all flex items-center justify-center cursor-pointer shadow-lg group ${
+          isOverTrash 
+            ? "bg-red-600 border-red-400 scale-110" 
+            : "bg-black border-slate-900 hover:bg-slate-900"
+        }`}
         style={{
           bottom: trashPadding,
           right: trashPadding,
           width: trashSize,
           height: trashSize,
         }}
-        title="Click to deselect"
+        title={draggingCor ? "Drop to discard (measure and collapse)" : "Click to deselect"}
       >
         <svg
-          className="text-white transition-transform group-hover:scale-110"
+          className={`transition-transform ${isOverTrash ? "scale-125 text-white" : "text-white group-hover:scale-110"}`}
           fill="currentColor"
           viewBox="0 0 24 24"
           style={{ width: trashSize * 0.4, height: trashSize * 0.4 }}
         >
           <path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1z" />
         </svg>
+        {isOverTrash && (
+          <span className="absolute -top-8 text-xs font-medium text-red-600 whitespace-nowrap bg-white px-2 py-1 rounded shadow">
+            Release to measure
+          </span>
+        )}
       </div>
 
       {cors.map((cor) => {
@@ -105,20 +160,39 @@ export function Canvas({ cors, selectedColor, onCanvasClick, onCorClick, onTrash
           return null
         }
 
-        const absoluteX = cor.x * canvasDimensions.width
-        const absoluteY = cor.y * canvasDimensions.height
+        const isDragging = draggingCor === cor.id
+        // When dragging, follow cursor; otherwise use stored position
+        let absoluteX = cor.x * canvasDimensions.width
+        let absoluteY = cor.y * canvasDimensions.height
+        
+        if (isDragging && cursorPos) {
+          absoluteX = cursorPos.x - dragOffset.x
+          absoluteY = cursorPos.y - dragOffset.y
+        }
+        
         const rotation = getRotationAngle(cor)
 
         return (
           <div
             key={cor.id}
-            onClick={() => onCorClick(cor)}
-            className="absolute cursor-pointer transition-transform hover:scale-105"
+            onMouseDown={(e) => handleCorMouseDown(e, cor)}
+            onClick={(e) => {
+              // Only trigger click if not dragging
+              if (!draggingCor) {
+                onCorClick(cor)
+              }
+            }}
+            className={`absolute cursor-pointer transition-transform ${
+              isDragging 
+                ? "scale-110 z-50 opacity-80" 
+                : "hover:scale-105"
+            }`}
             style={{
               left: absoluteX - 64,
               top: absoluteY - 64,
               width: 128,
               height: 128,
+              cursor: isDragging ? "grabbing" : "grab",
             }}
           >
             <svg width="128" height="128" viewBox="0 0 297 297" className="drop-shadow-lg">
@@ -137,8 +211,8 @@ export function Canvas({ cors, selectedColor, onCanvasClick, onCorClick, onTrash
                     c-3.759,3.884-5.732,9.02-5.557,14.46c0.102,3.117,0.82,5.201,1.91,8.355c1.066,3.087,2.392,6.927,3.264,12.284
                     c1.13,6.959-0.928,13.939-5.793,19.656C181.964,284.93,173.906,288.71,165.797,288.71z"
                   fill={hslToRgbString(cor.color)}
-                  stroke="white"
-                  strokeWidth="3"
+                  stroke={isDragging && isOverTrash ? "#ef4444" : "white"}
+                  strokeWidth={isDragging && isOverTrash ? "6" : "3"}
                   fillRule="evenodd"
                 />
               </g>

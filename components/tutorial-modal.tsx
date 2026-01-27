@@ -84,6 +84,20 @@ export function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
                 </p>
               </div>
             </div>
+
+            <div className="flex gap-4 items-start">
+              <div className="w-10 h-10 rounded-full bg-slate-800 flex-shrink-0 flex items-center justify-center text-white font-bold">
+                5
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-800 mb-1">Discard and Collapse</h3>
+                <p className="text-slate-600 text-sm">
+                  Drag any color to the trash bin to discard it. This performs a quantum measurement in the Z basis,
+                  collapsing the wavefunction. The outcome (|0&#x27E9; or |1&#x27E9;) is chosen probabilistically based on
+                  the qubit state, simulating a quantum trajectory. Entangled colors will change accordingly!
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
