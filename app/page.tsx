@@ -8,16 +8,14 @@ import { PaletteBar } from "@/components/palette-bar"
 import { TutorialModal } from "@/components/tutorial-modal"
 import { useQuantumState } from "@/hooks/use-quantum-state"
 import { useSelectionState } from "@/hooks/use-selection-state"
-import { useCorPosition } from "@/hooks/use-cor-position"
 import { useQubitManager } from "@/hooks/use-qubit-manager"
 import type { Cor } from "@/types/quantum"
 import { hslToRgbString } from "@/utils/quantum-circuit"
 
 export default function Page() {
-  const { requestQubit, error: qubitError, clearError } = useQubitManager(10)
-  const { cors, setCors, palette, createCor, mixCors, removeCor } = useQuantumState(requestQubit)
+  const { requestQubit, releaseQubit, error: qubitError, clearError } = useQubitManager(10)
+  const { cors, setCors, palette, createCor, mixCors, removeCor } = useQuantumState(requestQubit, releaseQubit)
   const { selectedColor, selectColor, deselectColor } = useSelectionState()
-  const { updateCorPosition } = useCorPosition(cors, setCors)
 
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
@@ -108,7 +106,6 @@ export default function Page() {
               }
             }}
             onCorClick={handleCorClick}
-            onCorDrag={(corId, pos) => updateCorPosition(corId, pos)}
             onTrashClick={deselectColor}
             onTrashDrop={handleTrashDrop}
           />

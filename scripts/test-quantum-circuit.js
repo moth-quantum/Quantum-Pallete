@@ -157,6 +157,63 @@ class QuantumCircuit {
     this.applyGate(qubit, this.getMatrix("x", 0))
   }
 
+  h(qubit) {
+    const sqrt2inv = 1 / Math.sqrt(2)
+    const matrix = [
+      [complex(sqrt2inv, 0), complex(sqrt2inv, 0)],
+      [complex(sqrt2inv, 0), complex(-sqrt2inv, 0)],
+    ]
+    this.applyGate(qubit, matrix)
+  }
+
+  cnot(control, target) {
+    const matrix = [
+      [complex(1, 0), complex(0, 0), complex(0, 0), complex(0, 0)],
+      [complex(0, 0), complex(1, 0), complex(0, 0), complex(0, 0)],
+      [complex(0, 0), complex(0, 0), complex(0, 0), complex(1, 0)],
+      [complex(0, 0), complex(0, 0), complex(1, 0), complex(0, 0)],
+    ]
+    this.apply2QubitGate(control, target, matrix)
+  }
+
+  measureAndRemoveQubit(qubit) {
+    if (this.numQubits === 0) throw new Error("Cannot measure: no qubits")
+    if (qubit < 0 || qubit >= this.numQubits) throw new Error(`Invalid qubit: ${qubit}`)
+
+    const size = Math.pow(2, this.numQubits)
+    const bitPos = this.numQubits - 1 - qubit
+
+    let prob0 = 0, prob1 = 0
+    for (let i = 0; i < size; i++) {
+      const prob = Math.pow(abs(this.statevector[i]), 2)
+      if (((i >> bitPos) & 1) === 0) prob0 += prob
+      else prob1 += prob
+    }
+
+    const outcome = Math.random() < prob0 ? 0 : 1
+    const newNumQubits = this.numQubits - 1
+    const newSize = Math.max(1, Math.pow(2, newNumQubits))
+    const newStatevector = Array(newSize).fill(null).map(() => complex(0, 0))
+    const normFactor = Math.sqrt(outcome === 0 ? prob0 : prob1)
+
+    if (normFactor > 1e-10) {
+      for (let i = 0; i < size; i++) {
+        if (((i >> bitPos) & 1) !== outcome) continue
+        const highBits = (i >> (bitPos + 1)) << bitPos
+        const lowBits = i & ((1 << bitPos) - 1)
+        const newIndex = highBits | lowBits
+        const amp = this.statevector[i]
+        newStatevector[newIndex] = complex(amp.re / normFactor, amp.im / normFactor)
+      }
+    } else {
+      newStatevector[0] = complex(1, 0)
+    }
+
+    this.numQubits = newNumQubits
+    this.statevector = newStatevector
+    return { outcome, prob0, prob1 }
+  }
+
   pswap(qubit1, qubit2, theta) {
     const c = Math.cos(theta / 2)
     const s = Math.sin(theta / 2)
@@ -453,6 +510,66 @@ function runTests() {
     }
   } catch (e) {
     console.log(`  Test 4: ERROR - ${e.message}\n`)
+    failed++
+  }
+
+  // Test 5: Bell State Measurement
+  console.log("Test 5: Bell State Creation and Measurement")
+  try {
+    const numTrials = 100
+    let outcome0Count = 0
+    let outcome1Count = 0
+    let sumZ0 = 0 // Sum of Z for remaining qubit when outcome=0
+    let sumZ1 = 0 // Sum of Z for remaining qubit when outcome=1
+
+    for (let trial = 0; trial < numTrials; trial++) {
+      const circuit = new QuantumCircuit()
+      circuit.addQubit()
+      circuit.addQubit()
+      
+      // Create Bell state: H on qubit 0, then CNOT(0,1)
+      circuit.h(0)
+      circuit.cnot(0, 1)
+      
+      // Measure and remove qubit 0
+      const result = circuit.measureAndRemoveQubit(0)
+      
+      // Get remaining qubit state
+      const expectations = circuit.calculateExpectationValues()
+      const remainingZ = expectations.get(0).z
+      
+      if (result.outcome === 0) {
+        outcome0Count++
+        sumZ0 += remainingZ
+      } else {
+        outcome1Count++
+        sumZ1 += remainingZ
+      }
+    }
+
+    const avgZ0 = outcome0Count > 0 ? sumZ0 / outcome0Count : 0
+    const avgZ1 = outcome1Count > 0 ? sumZ1 / outcome1Count : 0
+    const pct0 = (outcome0Count / numTrials) * 100
+    const pct1 = (outcome1Count / numTrials) * 100
+
+    console.log(`  Ran ${numTrials} trials of Bell state measurement`)
+    console.log(`  Outcome |0⟩: ${outcome0Count} times (${pct0.toFixed(1)}%), avg remaining Z = ${avgZ0.toFixed(3)} (expected +1)`)
+    console.log(`  Outcome |1⟩: ${outcome1Count} times (${pct1.toFixed(1)}%), avg remaining Z = ${avgZ1.toFixed(3)} (expected -1)`)
+
+    // Check that probabilities are roughly 50/50 (within statistical error)
+    const probPass = pct0 > 30 && pct0 < 70 // Very loose bounds for statistical test
+    // Check that correlations are correct
+    const corrPass = avgZ0 > 0.9 && avgZ1 < -0.9
+
+    if (probPass && corrPass) {
+      console.log("  Test 5: PASSED\n")
+      passed++
+    } else {
+      console.log("  Test 5: FAILED (correlations may be wrong)\n")
+      failed++
+    }
+  } catch (e) {
+    console.log(`  Test 5: ERROR - ${e.message}\n`)
     failed++
   }
 
