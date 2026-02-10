@@ -573,8 +573,10 @@ function runTests() {
     failed++
   }
 
-  // Test 6: pswap(pi) acts as full SWAP - swaps qubit states
-  console.log("Test 6: pswap(pi) swaps qubit states (ry/rx -> rx/ry)")
+  // Test 6: pswap(pi) swaps qubit states up to the expected i phase on |01⟩,|10⟩
+  // pswap(pi) matrix: |00⟩->|00⟩, |01⟩->i|10⟩, |10⟩->i|01⟩, |11⟩->|11⟩
+  // So qc1 amplitudes should equal qc2 amplitudes * i for the swapped components.
+  console.log("Test 6: pswap(pi) swaps qubit states (ry/rx -> rx/ry) with i phase")
   try {
     // qc1: apply ry(0.4) on qubit 0, rx(1.5) on qubit 1, then pswap(pi)
     const qc1 = new QuantumCircuit()
@@ -598,13 +600,29 @@ function runTests() {
     const details = []
 
     for (let i = 0; i < sv1.length; i++) {
-      const reMatch = approxEqual(sv1[i].re, sv2[i].re, 0.01)
-      const imMatch = approxEqual(sv1[i].im, sv2[i].im, 0.01)
+      const label = i.toString(2).padStart(2, "0")
+      const bit1 = (i >> 1) & 1
+      const bit0 = i & 1
+      const isSwapped = bit1 !== bit0 // |01⟩ and |10⟩ pick up a factor of i
+
+      // Expected: for |01⟩,|10⟩ qc1 = i * qc2 (re=-qc2.im, im=qc2.re)
+      //           for |00⟩,|11⟩ qc1 = qc2
+      let expectedRe, expectedIm
+      if (isSwapped) {
+        expectedRe = -sv2[i].im
+        expectedIm = sv2[i].re
+      } else {
+        expectedRe = sv2[i].re
+        expectedIm = sv2[i].im
+      }
+
+      const reMatch = approxEqual(sv1[i].re, expectedRe, 0.01)
+      const imMatch = approxEqual(sv1[i].im, expectedIm, 0.01)
       const status = reMatch && imMatch ? "PASS" : "FAIL"
       if (!reMatch || !imMatch) allMatch = false
       details.push(
-        `  |${i.toString(2).padStart(2, "0")}⟩: qc1=(${sv1[i].re.toFixed(5)}, ${sv1[i].im.toFixed(5)}) ` +
-        `qc2=(${sv2[i].re.toFixed(5)}, ${sv2[i].im.toFixed(5)}) ${status}`
+        `  |${label}⟩: qc1=(${sv1[i].re.toFixed(5)}, ${sv1[i].im.toFixed(5)}) ` +
+        `expected=(${expectedRe.toFixed(5)}, ${expectedIm.toFixed(5)}) ${status}`
       )
     }
 
