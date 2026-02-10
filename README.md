@@ -27,7 +27,7 @@ When colors are mixed, a parametric SWAP (p-SWAP) gate with angle π/10 is appli
 ## Deployment
 
 Your project is live at:
-**[https://vercel.com/quantumjoaos-projects/v0-quantum-pallet-app](https://vercel.com/quantumjoaos-projects/v0-quantum-pallet-app)**
+**[https://v0-quantum-palette.vercel.app](https:/v0-quantum-palette.vercel.app)**
 
 ## Build
 
