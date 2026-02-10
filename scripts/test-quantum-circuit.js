@@ -573,6 +573,55 @@ function runTests() {
     failed++
   }
 
+  // Test 6: pswap(pi) acts as full SWAP - swaps qubit states
+  console.log("Test 6: pswap(pi) swaps qubit states (ry/rx -> rx/ry)")
+  try {
+    // qc1: apply ry(0.4) on qubit 0, rx(1.5) on qubit 1, then pswap(pi)
+    const qc1 = new QuantumCircuit()
+    qc1.addQubit()
+    qc1.addQubit()
+    qc1.ry(0, 0.4)
+    qc1.rx(1, 1.5)
+    qc1.pswap(0, 1, Math.PI)
+
+    // qc2: apply rx(1.5) on qubit 0, ry(0.4) on qubit 1 (swapped gates)
+    const qc2 = new QuantumCircuit()
+    qc2.addQubit()
+    qc2.addQubit()
+    qc2.rx(0, 1.5)
+    qc2.ry(1, 0.4)
+
+    const sv1 = qc1.getStatevector()
+    const sv2 = qc2.getStatevector()
+
+    let allMatch = true
+    const details = []
+
+    for (let i = 0; i < sv1.length; i++) {
+      const reMatch = approxEqual(sv1[i].re, sv2[i].re, 0.01)
+      const imMatch = approxEqual(sv1[i].im, sv2[i].im, 0.01)
+      const status = reMatch && imMatch ? "PASS" : "FAIL"
+      if (!reMatch || !imMatch) allMatch = false
+      details.push(
+        `  |${i.toString(2).padStart(2, "0")}⟩: qc1=(${sv1[i].re.toFixed(5)}, ${sv1[i].im.toFixed(5)}) ` +
+        `qc2=(${sv2[i].re.toFixed(5)}, ${sv2[i].im.toFixed(5)}) ${status}`
+      )
+    }
+
+    console.log(details.join("\n"))
+
+    if (allMatch) {
+      console.log("  Test 6: PASSED\n")
+      passed++
+    } else {
+      console.log("  Test 6: FAILED\n")
+      failed++
+    }
+  } catch (e) {
+    console.log(`  Test 6: ERROR - ${e.message}\n`)
+    failed++
+  }
+
   console.log("=== Summary ===")
   console.log(`Passed: ${passed}, Failed: ${failed}`)
 

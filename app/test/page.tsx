@@ -95,6 +95,52 @@ export default function TestPage() {
       testResults.push({ name: "Test 2: Rotate and pswap", passed: false, details: [`Error: ${e}`] })
     }
 
+    // Test 3: pswap(pi) acts as full SWAP - swaps qubit states
+    try {
+      // qc1: ry(0.4) on qubit 0, rx(1.5) on qubit 1, then pswap(pi)
+      const qc1 = new QuantumCircuit()
+      qc1.addQubit()
+      qc1.addQubit()
+      qc1.ry(0, 0.4)
+      qc1.rx(1, 1.5)
+      qc1.pswap(0, 1, Math.PI)
+
+      // qc2: rx(1.5) on qubit 0, ry(0.4) on qubit 1 (swapped gates)
+      const qc2 = new QuantumCircuit()
+      qc2.addQubit()
+      qc2.addQubit()
+      qc2.rx(0, 1.5)
+      qc2.ry(1, 0.4)
+
+      const sv1 = qc1.getStatevector()
+      const sv2 = qc2.getStatevector()
+
+      const details: string[] = []
+      let allMatch = true
+
+      for (let i = 0; i < sv1.length; i++) {
+        const reMatch = approxEqual(sv1[i].re, sv2[i].re, 0.01)
+        const imMatch = approxEqual(sv1[i].im, sv2[i].im, 0.01)
+        if (!reMatch || !imMatch) allMatch = false
+        const label = i.toString(2).padStart(2, "0")
+        details.push(
+          `|${label}⟩: qc1=(${sv1[i].re.toFixed(5)}, ${sv1[i].im.toFixed(5)})  qc2=(${sv2[i].re.toFixed(5)}, ${sv2[i].im.toFixed(5)})  ${reMatch && imMatch ? "MATCH" : "MISMATCH"}`
+        )
+      }
+
+      testResults.push({
+        name: "Test 3: pswap(pi) swaps qubit states (ry/rx -> rx/ry)",
+        passed: allMatch,
+        details,
+      })
+    } catch (e) {
+      testResults.push({
+        name: "Test 3: pswap(pi) swaps qubit states (ry/rx -> rx/ry)",
+        passed: false,
+        details: [`Error: ${e}`],
+      })
+    }
+
     setResults(testResults)
     setHasRun(true)
   }
