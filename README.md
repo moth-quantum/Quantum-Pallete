@@ -22,7 +22,7 @@ When colors are mixed, a parametric SWAP (p-SWAP) gate with angle π/10 is appli
 
 4. **Explore Entanglement**: Mix multiple colors in different orders to create highly entangled quantum states. Notice how the resulting colors differ from classical mixing - the order of operations matters!
 
-5. **Remove Colors**: Drag a color splash to the trash region (bottom-right) to remove it from the palette. Note that the underlying quantum state remains unchanged.
+5. **Discard and Collapse**: Drag a color splash to the trash bin to discard it. This performs a quantum measurement in the Z basis, collapsing the wavefunction. The outcome (|0⟩ or |1⟩) is chosen probabilistically based on the qubit state, simulating a quantum trajectory. Entangled colors will change accordingly!
 
 ## Deployment
 
