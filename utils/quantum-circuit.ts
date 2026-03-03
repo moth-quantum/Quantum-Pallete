@@ -1,6 +1,29 @@
-import { complex, add, multiply, abs, pi, type Complex } from "mathjs"
 import type { HSL } from "@/types/quantum"
-// Quantum circuit simulation engine
+
+// Native complex number implementation (replaces mathjs to avoid bundling issues)
+interface Complex {
+  re: number
+  im: number
+}
+
+function complex(re: number, im: number): Complex {
+  return { re, im }
+}
+
+function add(a: Complex, b: Complex): Complex {
+  return { re: a.re + b.re, im: a.im + b.im }
+}
+
+function multiply(a: Complex, b: Complex): Complex {
+  return {
+    re: a.re * b.re - a.im * b.im,
+    im: a.re * b.im + a.im * b.re,
+  }
+}
+
+function cabs(a: Complex): number {
+  return Math.sqrt(a.re * a.re + a.im * a.im)
+}
 
 export class QuantumCircuit {
   numQubits: number
@@ -237,7 +260,7 @@ export class QuantumCircuit {
 
     for (let i = 0; i < size; i++) {
       const amplitude = this.statevector[i]
-      const prob = Math.pow(abs(amplitude), 2)
+      const prob = Math.pow(cabs(amplitude), 2)
       const bitValue = (i >> bitPos) & 1
 
       if (bitValue === 0) {
@@ -318,7 +341,7 @@ export class QuantumCircuit {
 
     for (let i = 0; i < size; i++) {
       const amplitude = statevector[i]
-      const prob = Math.pow(abs(amplitude), 2)
+      const prob = Math.pow(cabs(amplitude), 2)
       for (let qubit = 0; qubit < this.numQubits; qubit++) {
         const bitPos = this.numQubits - 1 - qubit
         const bitAtQubit = (i >> bitPos) & 1
@@ -441,8 +464,8 @@ export function hslToHex(hsl: HSL): string {
 export function hslToAngles(hsl: HSL): { ryAngle: number; rzAngle: number } {
   const [h, , l] = hsl
   return {
-    ryAngle: (pi as number) * l,
-    rzAngle: 2 * (pi as number) * h,
+    ryAngle: Math.PI * l,
+    rzAngle: 2 * Math.PI * h,
   }
 }
 
