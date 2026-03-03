@@ -1,29 +1,5 @@
+import { complex, add, multiply, abs, pi, type Complex } from "mathjs"
 import type { HSL } from "@/types/quantum"
-
-// Native complex number implementation (replaces mathjs to avoid bundling issues)
-interface Complex {
-  re: number
-  im: number
-}
-
-function complex(re: number, im: number): Complex {
-  return { re, im }
-}
-
-function add(a: Complex, b: Complex): Complex {
-  return { re: a.re + b.re, im: a.im + b.im }
-}
-
-function multiply(a: Complex, b: Complex): Complex {
-  return {
-    re: a.re * b.re - a.im * b.im,
-    im: a.re * b.im + a.im * b.re,
-  }
-}
-
-function cabs(a: Complex): number {
-  return Math.sqrt(a.re * a.re + a.im * a.im)
-}
 
 export class QuantumCircuit {
   numQubits: number
@@ -213,16 +189,13 @@ export class QuantumCircuit {
     this.apply2QubitGate(qubit1, qubit2, matrix)
   }
 
-  iswap(qubit1, qubit2, theta) {
-    // Parametric iSWAP gate: interpolates from identity (theta=0) to full iSWAP (theta=pi/2)
-    // At theta=pi/2: |01> -> i|10>, |10> -> i|01>
-    const c = Math.cos(theta)
-    const s = Math.sin(theta)
-
+  iswap(qubit1, qubit2) {
+    // iSWAP gate: swaps |01> <-> |10> with a phase of i
+    // |00> -> |00>, |01> -> i|10>, |10> -> i|01>, |11> -> |11>
     const matrix = [
       [complex(1, 0), complex(0, 0), complex(0, 0), complex(0, 0)], // |00> -> |00>
-      [complex(0, 0), complex(c, 0), complex(0, s), complex(0, 0)], // |01> -> c|01> + is|10>
-      [complex(0, 0), complex(0, s), complex(c, 0), complex(0, 0)], // |10> -> is|01> + c|10>
+      [complex(0, 0), complex(0, 0), complex(0, 1), complex(0, 0)], // |01> -> i|10>
+      [complex(0, 0), complex(0, 1), complex(0, 0), complex(0, 0)], // |10> -> i|01>
       [complex(0, 0), complex(0, 0), complex(0, 0), complex(1, 0)], // |11> -> |11>
     ]
 
@@ -260,7 +233,7 @@ export class QuantumCircuit {
 
     for (let i = 0; i < size; i++) {
       const amplitude = this.statevector[i]
-      const prob = Math.pow(cabs(amplitude), 2)
+      const prob = Math.pow(abs(amplitude), 2)
       const bitValue = (i >> bitPos) & 1
 
       if (bitValue === 0) {
@@ -341,7 +314,7 @@ export class QuantumCircuit {
 
     for (let i = 0; i < size; i++) {
       const amplitude = statevector[i]
-      const prob = Math.pow(cabs(amplitude), 2)
+      const prob = Math.pow(abs(amplitude), 2)
       for (let qubit = 0; qubit < this.numQubits; qubit++) {
         const bitPos = this.numQubits - 1 - qubit
         const bitAtQubit = (i >> bitPos) & 1
@@ -464,8 +437,8 @@ export function hslToHex(hsl: HSL): string {
 export function hslToAngles(hsl: HSL): { ryAngle: number; rzAngle: number } {
   const [h, , l] = hsl
   return {
-    ryAngle: Math.PI * l,
-    rzAngle: 2 * Math.PI * h,
+    ryAngle: (pi as number) * l,
+    rzAngle: 2 * (pi as number) * h,
   }
 }
 

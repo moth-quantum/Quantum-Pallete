@@ -9,8 +9,6 @@ interface SettingsDropdownProps {
   onColorFormatChange: (format: ColorFormat) => void
   gateType: GateType
   onGateTypeChange: (gate: GateType) => void
-  gateStrength: number
-  onGateStrengthChange: (strength: number) => void
 }
 
 const colorFormats: { value: ColorFormat; label: string }[] = [
@@ -29,8 +27,6 @@ export function SettingsDropdown({
   onColorFormatChange,
   gateType,
   onGateTypeChange,
-  gateStrength,
-  onGateStrengthChange,
 }: SettingsDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -103,29 +99,6 @@ export function SettingsDropdown({
                     {gate.label}
                   </button>
                 ))}
-              </div>
-            </div>
-
-            <div className="border-t border-slate-100 pt-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  Gate Strength
-                </span>
-                <span className="text-xs font-mono text-slate-600">
-                  {Math.round(gateStrength * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={Math.round(gateStrength * 100)}
-                onChange={(e) => onGateStrengthChange(Number(e.target.value) / 100)}
-                className="mt-2 w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-slate-800"
-              />
-              <div className="flex justify-between mt-1">
-                <span className="text-[10px] text-slate-400">None</span>
-                <span className="text-[10px] text-slate-400">Full</span>
               </div>
             </div>
           </div>
