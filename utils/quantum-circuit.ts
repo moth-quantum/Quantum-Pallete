@@ -189,13 +189,16 @@ export class QuantumCircuit {
     this.apply2QubitGate(qubit1, qubit2, matrix)
   }
 
-  iswap(qubit1, qubit2) {
-    // iSWAP gate: swaps |01> <-> |10> with a phase of i
-    // |00> -> |00>, |01> -> i|10>, |10> -> i|01>, |11> -> |11>
+  iswap(qubit1, qubit2, theta) {
+    // Parametric iSWAP gate: interpolates from identity (theta=0) to full iSWAP (theta=pi/2)
+    // At theta=pi/2: |01> -> i|10>, |10> -> i|01>
+    const c = Math.cos(theta)
+    const s = Math.sin(theta)
+
     const matrix = [
       [complex(1, 0), complex(0, 0), complex(0, 0), complex(0, 0)], // |00> -> |00>
-      [complex(0, 0), complex(0, 0), complex(0, 1), complex(0, 0)], // |01> -> i|10>
-      [complex(0, 0), complex(0, 1), complex(0, 0), complex(0, 0)], // |10> -> i|01>
+      [complex(0, 0), complex(c, 0), complex(0, s), complex(0, 0)], // |01> -> c|01> + is|10>
+      [complex(0, 0), complex(0, s), complex(c, 0), complex(0, 0)], // |10> -> is|01> + c|10>
       [complex(0, 0), complex(0, 0), complex(0, 0), complex(1, 0)], // |11> -> |11>
     ]
 

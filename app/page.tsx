@@ -17,7 +17,8 @@ export default function Page() {
   const { requestQubit, releaseQubit, error: qubitError, clearError } = useQubitManager(10)
   const [colorFormat, setColorFormat] = useState<ColorFormat>("hsl")
   const [gateType, setGateType] = useState<GateType>("pswap")
-  const { cors, setCors, palette, createCor, mixCors, removeCor } = useQuantumState(requestQubit, releaseQubit, gateType)
+  const [gateStrength, setGateStrength] = useState(0.2)
+  const { cors, setCors, palette, createCor, mixCors, removeCor } = useQuantumState(requestQubit, releaseQubit, gateType, gateStrength)
   const { selectedColor, selectColor, deselectColor } = useSelectionState()
 
   const [showColorPicker, setShowColorPicker] = useState(false)
@@ -91,6 +92,8 @@ export default function Page() {
             onColorFormatChange={setColorFormat}
             gateType={gateType}
             onGateTypeChange={setGateType}
+            gateStrength={gateStrength}
+            onGateStrengthChange={setGateStrength}
           />
 
           {selectedColor && (
