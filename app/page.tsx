@@ -6,15 +6,18 @@ import { Canvas } from "@/components/canvas"
 import { ColorPicker } from "@/components/color-picker"
 import { PaletteBar } from "@/components/palette-bar"
 import { TutorialModal } from "@/components/tutorial-modal"
+import { SettingsDropdown } from "@/components/settings-dropdown"
 import { useQuantumState } from "@/hooks/use-quantum-state"
 import { useSelectionState } from "@/hooks/use-selection-state"
 import { useQubitManager } from "@/hooks/use-qubit-manager"
-import type { Cor } from "@/types/quantum"
+import type { Cor, ColorFormat, GateType } from "@/types/quantum"
 import { hslToRgbString } from "@/utils/quantum-circuit"
 
 export default function Page() {
   const { requestQubit, releaseQubit, error: qubitError, clearError } = useQubitManager(10)
-  const { cors, setCors, palette, createCor, mixCors, removeCor } = useQuantumState(requestQubit, releaseQubit)
+  const [colorFormat, setColorFormat] = useState<ColorFormat>("hsl")
+  const [gateType, setGateType] = useState<GateType>("pswap")
+  const { cors, setCors, palette, createCor, mixCors, removeCor } = useQuantumState(requestQubit, releaseQubit, gateType)
   const { selectedColor, selectColor, deselectColor } = useSelectionState()
 
   const [showColorPicker, setShowColorPicker] = useState(false)
@@ -83,6 +86,13 @@ export default function Page() {
             <HelpCircle className="w-4 h-4 text-slate-500" />
           </button>
 
+          <SettingsDropdown
+            colorFormat={colorFormat}
+            onColorFormatChange={setColorFormat}
+            gateType={gateType}
+            onGateTypeChange={setGateType}
+          />
+
           {selectedColor && (
             <div
               className="w-10 h-10 rounded-full border-2 border-slate-300 shadow-md flex-shrink-0"
@@ -118,7 +128,7 @@ export default function Page() {
         )}
 
         <div className="h-24 border-t border-slate-100 bg-white rounded-b-3xl p-3 overflow-y-auto flex-shrink-0">
-          <PaletteBar palette={palette} cors={cors} />
+          <PaletteBar palette={palette} cors={cors} colorFormat={colorFormat} />
         </div>
       </div>
     </div>

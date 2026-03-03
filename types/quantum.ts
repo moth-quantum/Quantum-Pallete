@@ -1,5 +1,8 @@
 export type HSL = [number, number, number] // [h, s, l] all in range [0, 1]
 
+export type ColorFormat = "rgb" | "hsl" | "hex"
+export type GateType = "pswap" | "iswap"
+
 export interface Cor {
   id: string
   color: HSL

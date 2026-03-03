@@ -189,6 +189,19 @@ export class QuantumCircuit {
     this.apply2QubitGate(qubit1, qubit2, matrix)
   }
 
+  iswap(qubit1, qubit2) {
+    // iSWAP gate: swaps |01> <-> |10> with a phase of i
+    // |00> -> |00>, |01> -> i|10>, |10> -> i|01>, |11> -> |11>
+    const matrix = [
+      [complex(1, 0), complex(0, 0), complex(0, 0), complex(0, 0)], // |00> -> |00>
+      [complex(0, 0), complex(0, 0), complex(0, 1), complex(0, 0)], // |01> -> i|10>
+      [complex(0, 0), complex(0, 1), complex(0, 0), complex(0, 0)], // |10> -> i|01>
+      [complex(0, 0), complex(0, 0), complex(0, 0), complex(1, 0)], // |11> -> |11>
+    ]
+
+    this.apply2QubitGate(qubit1, qubit2, matrix)
+  }
+
   copy() {
     const copied = new QuantumCircuit(0)
     copied.numQubits = this.numQubits
@@ -386,6 +399,38 @@ export function hslToRgbString(hsl: HSL): string {
   const blue = Math.round(Math.max(0, Math.min(1, b)) * 255)
 
   return `rgb(${red}, ${green}, ${blue})`
+}
+
+// Convert HSL to hex string
+export function hslToHex(hsl: HSL): string {
+  const [h, s, l] = hsl
+  let r: number, g: number, b: number
+
+  if (s === 0) {
+    r = g = b = l
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1
+      if (t > 1) t -= 1
+      if (t < 1 / 6) return p + (q - p) * 6 * t
+      if (t < 1 / 2) return q
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
+      return p
+    }
+
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+    const p = 2 * l - q
+    r = hue2rgb(p, q, h + 1 / 3)
+    g = hue2rgb(p, q, h)
+    b = hue2rgb(p, q, h - 1 / 3)
+  }
+
+  const red = Math.round(Math.max(0, Math.min(1, r)) * 255)
+  const green = Math.round(Math.max(0, Math.min(1, g)) * 255)
+  const blue = Math.round(Math.max(0, Math.min(1, b)) * 255)
+
+  const toHex = (c: number) => c.toString(16).padStart(2, "0")
+  return `#${toHex(red)}${toHex(green)}${toHex(blue)}`
 }
 
 // Convert HSL to gate angles
