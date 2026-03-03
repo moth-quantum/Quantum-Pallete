@@ -1,5 +1,6 @@
 import { complex, add, multiply, abs, pi, type Complex } from "mathjs"
 import type { HSL } from "@/types/quantum"
+// Quantum circuit simulation engine
 
 export class QuantumCircuit {
   numQubits: number
