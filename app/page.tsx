@@ -10,14 +10,15 @@ import { SettingsDropdown } from "@/components/settings-dropdown"
 import { useQuantumState } from "@/hooks/use-quantum-state"
 import { useSelectionState } from "@/hooks/use-selection-state"
 import { useQubitManager } from "@/hooks/use-qubit-manager"
-import type { Cor, ColorFormat } from "@/types/quantum"
+import type { Cor, ColorFormat, GateType } from "@/types/quantum"
 import { hslToRgbString } from "@/utils/quantum-circuit"
 
 export default function Page() {
   const { requestQubit, releaseQubit, error: qubitError, clearError } = useQubitManager(10)
   const [colorFormat, setColorFormat] = useState<ColorFormat>("hsl")
+  const [gateType, setGateType] = useState<GateType>("swap")
   const [gateStrength, setGateStrength] = useState(0.2)
-  const { cors, setCors, palette, createCor, mixCors, removeCor } = useQuantumState(requestQubit, releaseQubit, gateStrength)
+  const { cors, setCors, palette, createCor, mixCors, removeCor } = useQuantumState(requestQubit, releaseQubit, gateType, gateStrength)
   const { selectedColor, selectColor, deselectColor } = useSelectionState()
 
   const [showColorPicker, setShowColorPicker] = useState(false)
@@ -89,6 +90,8 @@ export default function Page() {
           <SettingsDropdown
             colorFormat={colorFormat}
             onColorFormatChange={setColorFormat}
+            gateType={gateType}
+            onGateTypeChange={setGateType}
             gateStrength={gateStrength}
             onGateStrengthChange={setGateStrength}
           />

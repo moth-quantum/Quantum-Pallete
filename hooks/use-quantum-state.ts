@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useRef, useMemo } from "react"
-import type { Cor, HSL } from "@/types/quantum"
+import type { Cor, HSL, GateType } from "@/types/quantum"
 import { QuantumCircuit, hslToAngles, expectationValuesToHsl } from "@/utils/quantum-circuit"
 
 export interface MeasurementResult {
@@ -14,6 +14,7 @@ export interface MeasurementResult {
 export function useQuantumState(
   requestQubit: () => number | null,
   releaseQubit: (qubit: number) => void,
+  gateType: GateType = "swap",
   gateStrength: number = 0.2
 ) {
   const [cors, setCors] = useState<Cor[]>([])
@@ -116,11 +117,15 @@ export function useQuantumState(
         return
       }
       
-      // SWAP^q: q=0 identity (no effect), q=1 full SWAP
-      circuitRef.current.swapPow(circuit1, circuit2, gateStrength)
+      // gateStrength 0..1: for SWAP^p, q param directly; for iSWAP, maps to 0..pi/2
+      if (gateType === "iswap") {
+        circuitRef.current.iswap(circuit1, circuit2, gateStrength * (Math.PI / 2))
+      } else {
+        circuitRef.current.swapPow(circuit1, circuit2, gateStrength)
+      }
       updateCorColors()
     },
-    [updateCorColors, gateStrength],
+    [updateCorColors, gateType, gateStrength],
   )
 
   /**

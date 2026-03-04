@@ -2,11 +2,13 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Settings } from "lucide-react"
-import type { ColorFormat } from "@/types/quantum"
+import type { ColorFormat, GateType } from "@/types/quantum"
 
 interface SettingsDropdownProps {
   colorFormat: ColorFormat
   onColorFormatChange: (format: ColorFormat) => void
+  gateType: GateType
+  onGateTypeChange: (gate: GateType) => void
   gateStrength: number
   onGateStrengthChange: (strength: number) => void
 }
@@ -17,9 +19,16 @@ const colorFormats: { value: ColorFormat; label: string }[] = [
   { value: "hex", label: "Hex" },
 ]
 
+const gateTypes: { value: GateType; label: string }[] = [
+  { value: "swap", label: "SWAP^p" },
+  { value: "iswap", label: "iSWAP" },
+]
+
 export function SettingsDropdown({
   colorFormat,
   onColorFormatChange,
+  gateType,
+  onGateTypeChange,
   gateStrength,
   onGateStrengthChange,
 }: SettingsDropdownProps) {
@@ -77,9 +86,30 @@ export function SettingsDropdown({
             </div>
 
             <div className="border-t border-slate-100 pt-4">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Mixing Gate
+              </span>
+              <div className="mt-2 flex rounded-lg border border-slate-200 overflow-hidden">
+                {gateTypes.map((gate) => (
+                  <button
+                    key={gate.value}
+                    onClick={() => onGateTypeChange(gate.value)}
+                    className={`flex-1 py-1.5 text-xs font-semibold transition-colors ${
+                      gateType === gate.value
+                        ? "bg-slate-800 text-white"
+                        : "bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {gate.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                  SWAP^p Strength
+                  Gate Strength
                 </span>
                 <span className="text-xs font-mono text-slate-600">
                   {Math.round(gateStrength * 100)}%
