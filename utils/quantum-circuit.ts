@@ -174,16 +174,56 @@ export class QuantumCircuit {
     this.apply2QubitGate(control, target, matrix)
   }
 
-  pswap(qubit1, qubit2, theta) {
-    const c = Math.cos(theta / 2)
-    const s = Math.sin(theta / 2)
+  /**
+   * SWAP^q gate from spectral decomposition (see: https://quantumcomputing.stackexchange.com/a/3794)
+   *
+   * SWAP^q = diag(1, e^{iπq/2}cos(πq/2), e^{iπq/2}cos(πq/2), 1)
+   *        + off-diag(0, -ie^{iπq/2}sin(πq/2), -ie^{iπq/2}sin(πq/2), 0)
+   *
+   * q=0 -> identity, q=1 -> full SWAP, q=0.5 -> sqrt(SWAP)
+   *
+   * @param qubit1 - first qubit
+   * @param qubit2 - second qubit
+   * @param q - power parameter in [0, 1]
+   */
+  swapPow(qubit1: number, qubit2: number, q: number) {
+    const a = (Math.PI * q) / 2
+    const cosA = Math.cos(a)
+    const sinA = Math.sin(a)
 
-    // pswap matrix: swaps |01> <-> |10> with phase
+    // e^{iπq/2} = cos(πq/2) + i·sin(πq/2)
+    // diagonal:     e^{ia} · cos(a) = cos²a + i·sin(a)·cos(a)
+    // off-diagonal: -i · e^{ia} · sin(a) = sin²a - i·cos(a)·sin(a)
+    const diag = complex(cosA * cosA, sinA * cosA)
+    const offDiag = complex(sinA * sinA, -cosA * sinA)
+
     const matrix = [
       [complex(1, 0), complex(0, 0), complex(0, 0), complex(0, 0)], // |00> -> |00>
-      [complex(0, 0), complex(c, 0), complex(0, s), complex(0, 0)], // |01> -> c|01> + is|10>
-      [complex(0, 0), complex(0, s), complex(c, 0), complex(0, 0)], // |10> -> is|01> + c|10>
+      [complex(0, 0), diag,          offDiag,        complex(0, 0)], // |01>
+      [complex(0, 0), offDiag,        diag,          complex(0, 0)], // |10>
       [complex(0, 0), complex(0, 0), complex(0, 0), complex(1, 0)], // |11> -> |11>
+    ]
+
+    this.apply2QubitGate(qubit1, qubit2, matrix)
+  }
+
+  /**
+   * Parametric iSWAP gate: interpolates from identity (theta=0) to full iSWAP (theta=pi/2)
+   * At theta=pi/2: |01> -> i|10>, |10> -> i|01>
+   *
+   * @param qubit1 - first qubit
+   * @param qubit2 - second qubit
+   * @param theta - angle parameter in [0, pi/2]
+   */
+  iswap(qubit1: number, qubit2: number, theta: number) {
+    const c = Math.cos(theta)
+    const s = Math.sin(theta)
+
+    const matrix = [
+      [complex(1, 0), complex(0, 0), complex(0, 0), complex(0, 0)],
+      [complex(0, 0), complex(c, 0), complex(0, s), complex(0, 0)],
+      [complex(0, 0), complex(0, s), complex(c, 0), complex(0, 0)],
+      [complex(0, 0), complex(0, 0), complex(0, 0), complex(1, 0)],
     ]
 
     this.apply2QubitGate(qubit1, qubit2, matrix)
@@ -386,6 +426,38 @@ export function hslToRgbString(hsl: HSL): string {
   const blue = Math.round(Math.max(0, Math.min(1, b)) * 255)
 
   return `rgb(${red}, ${green}, ${blue})`
+}
+
+// Convert HSL to hex string
+export function hslToHex(hsl: HSL): string {
+  const [h, s, l] = hsl
+  let r: number, g: number, b: number
+
+  if (s === 0) {
+    r = g = b = l
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1
+      if (t > 1) t -= 1
+      if (t < 1 / 6) return p + (q - p) * 6 * t
+      if (t < 1 / 2) return q
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
+      return p
+    }
+
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+    const p = 2 * l - q
+    r = hue2rgb(p, q, h + 1 / 3)
+    g = hue2rgb(p, q, h)
+    b = hue2rgb(p, q, h - 1 / 3)
+  }
+
+  const red = Math.round(Math.max(0, Math.min(1, r)) * 255)
+  const green = Math.round(Math.max(0, Math.min(1, g)) * 255)
+  const blue = Math.round(Math.max(0, Math.min(1, b)) * 255)
+
+  const toHex = (c: number) => c.toString(16).padStart(2, "0")
+  return `#${toHex(red)}${toHex(green)}${toHex(blue)}`
 }
 
 // Convert HSL to gate angles
