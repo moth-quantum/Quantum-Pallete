@@ -1,5 +1,29 @@
-import { complex, add, multiply, abs, pi, type Complex } from "mathjs"
 import type { HSL } from "@/types/quantum"
+
+// Native complex number implementation (replaces mathjs to avoid Turbopack bundling issues)
+interface Complex {
+  re: number
+  im: number
+}
+
+function complex(re: number, im: number): Complex {
+  return { re, im }
+}
+
+function add(a: Complex, b: Complex): Complex {
+  return { re: a.re + b.re, im: a.im + b.im }
+}
+
+function multiply(a: Complex, b: Complex): Complex {
+  return {
+    re: a.re * b.re - a.im * b.im,
+    im: a.re * b.im + a.im * b.re,
+  }
+}
+
+function cabs(a: Complex): number {
+  return Math.sqrt(a.re * a.re + a.im * a.im)
+}
 
 export class QuantumCircuit {
   numQubits: number
@@ -174,31 +198,33 @@ export class QuantumCircuit {
     this.apply2QubitGate(control, target, matrix)
   }
 
-  pswap(qubit1, qubit2, theta) {
-    const c = Math.cos(theta / 2)
-    const s = Math.sin(theta / 2)
+  /**
+   * SWAP^q gate from spectral decomposition (see: https://quantumcomputing.stackexchange.com/a/3794)
+   *
+   * SWAP^q = diag(1, e^{iπq/2}cos(πq/2), e^{iπq/2}cos(πq/2), 1)
+   *        + off-diag(0, -ie^{iπq/2}sin(πq/2), -ie^{iπq/2}sin(πq/2), 0)
+   *
+   * q=0 -> identity, q=1 -> full SWAP, q=0.5 -> sqrt(SWAP)
+   *
+   * @param qubit1 - first qubit
+   * @param qubit2 - second qubit
+   * @param q - power parameter in [0, 1]
+   */
+  swapPow(qubit1: number, qubit2: number, q: number) {
+    const a = (Math.PI * q) / 2
+    const cosA = Math.cos(a)
+    const sinA = Math.sin(a)
 
-    // pswap matrix: swaps |01> <-> |10> with phase
+    // e^{iπq/2} = cos(πq/2) + i·sin(πq/2)
+    // diagonal:     e^{ia} · cos(a) = cos²a + i·sin(a)·cos(a)
+    // off-diagonal: -i · e^{ia} · sin(a) = sin²a - i·cos(a)·sin(a)
+    const diag = complex(cosA * cosA, sinA * cosA)
+    const offDiag = complex(sinA * sinA, -cosA * sinA)
+
     const matrix = [
       [complex(1, 0), complex(0, 0), complex(0, 0), complex(0, 0)], // |00> -> |00>
-      [complex(0, 0), complex(c, 0), complex(0, s), complex(0, 0)], // |01> -> c|01> + is|10>
-      [complex(0, 0), complex(0, s), complex(c, 0), complex(0, 0)], // |10> -> is|01> + c|10>
-      [complex(0, 0), complex(0, 0), complex(0, 0), complex(1, 0)], // |11> -> |11>
-    ]
-
-    this.apply2QubitGate(qubit1, qubit2, matrix)
-  }
-
-  iswap(qubit1, qubit2, theta) {
-    // Parametric iSWAP gate: interpolates from identity (theta=0) to full iSWAP (theta=pi/2)
-    // At theta=pi/2: |01> -> i|10>, |10> -> i|01>
-    const c = Math.cos(theta)
-    const s = Math.sin(theta)
-
-    const matrix = [
-      [complex(1, 0), complex(0, 0), complex(0, 0), complex(0, 0)], // |00> -> |00>
-      [complex(0, 0), complex(c, 0), complex(0, s), complex(0, 0)], // |01> -> c|01> + is|10>
-      [complex(0, 0), complex(0, s), complex(c, 0), complex(0, 0)], // |10> -> is|01> + c|10>
+      [complex(0, 0), diag,          offDiag,        complex(0, 0)], // |01>
+      [complex(0, 0), offDiag,        diag,          complex(0, 0)], // |10>
       [complex(0, 0), complex(0, 0), complex(0, 0), complex(1, 0)], // |11> -> |11>
     ]
 
@@ -236,7 +262,7 @@ export class QuantumCircuit {
 
     for (let i = 0; i < size; i++) {
       const amplitude = this.statevector[i]
-      const prob = Math.pow(abs(amplitude), 2)
+      const prob = Math.pow(cabs(amplitude), 2)
       const bitValue = (i >> bitPos) & 1
 
       if (bitValue === 0) {
@@ -317,7 +343,7 @@ export class QuantumCircuit {
 
     for (let i = 0; i < size; i++) {
       const amplitude = statevector[i]
-      const prob = Math.pow(abs(amplitude), 2)
+      const prob = Math.pow(cabs(amplitude), 2)
       for (let qubit = 0; qubit < this.numQubits; qubit++) {
         const bitPos = this.numQubits - 1 - qubit
         const bitAtQubit = (i >> bitPos) & 1
@@ -440,8 +466,8 @@ export function hslToHex(hsl: HSL): string {
 export function hslToAngles(hsl: HSL): { ryAngle: number; rzAngle: number } {
   const [h, , l] = hsl
   return {
-    ryAngle: (pi as number) * l,
-    rzAngle: 2 * (pi as number) * h,
+    ryAngle: Math.PI * l,
+    rzAngle: 2 * Math.PI * h,
   }
 }
 
